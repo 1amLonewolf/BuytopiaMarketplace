@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Environment Variables (CRITICAL for Security)
+.env
+.env.local
+.env.production
+
+# Build Output
+backend/dist/
+frontend/dist/
+frontend/build/
+
+# IDE / OS Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Stripe CLI
+stripe-cli/
