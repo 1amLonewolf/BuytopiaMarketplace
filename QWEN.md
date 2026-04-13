@@ -1,6 +1,6 @@
 # Buytopia Marketplace — Project Context
 
-> **Last updated:** April 11, 2026
+> **Last updated:** April 13, 2026
 
 ## Project Overview
 
@@ -470,45 +470,39 @@ CLOUDINARY_API_SECRET=your_api_secret
 
 | Feature | Details |
 |---------|---------|
-| **Shopping Cart** | Persistent (DB for logged-in users, localStorage for guests), auto-merge on login, real-time pricing, free shipping over $50 |
+| **Shopping Cart** | Persistent (DB for logged-in users, localStorage for guests), auto-merge on login, real-time pricing, free shipping over KSh 50 |
 | **Wishlist** | Per-user product wishlist with vendor population |
 | **Reviews** | 5-star ratings, verified purchase badges, helpful voting, admin moderation/approval, duplicate prevention |
 | **Search & Filters** | Full-text search, category/price/rating filtering, multi-field sorting, pagination |
-| **Payments** | Stripe PaymentIntent creation, order status tracking, Cash on Delivery fallback, admin-initiated refunds with inventory restoration |
-| **Vendor Workflow** | Application → admin approval → dashboard access → product management → order fulfillment → sales analytics |
-| **Admin Dashboard** | Platform analytics (aggregation pipelines), user/vendor/product/order/review management, vendor approval queue, featured product toggling |
+| **Payments** | Stripe Checkout redirect, order status tracking, Cash on Delivery fallback, M-Pesa option, admin-initiated refunds with inventory restoration |
+| **Vendor Workflow** | Application → admin approval → dashboard access → product management → order fulfillment → sales analytics (per-vendor data isolation) |
+| **Admin Dashboard** | Platform analytics (UTC time-series aggregation pipelines), user/vendor/product/order/review management, vendor approval queue, featured product toggling |
 | **Vendor Storefront** | Public-facing vendor page with vendor info, rating, and product listing |
 | **Guest Checkout** | Cash on Delivery available without payment provider |
+| **Scroll-to-Top** | Automatic page scroll on every route change via `ScrollToTop` component |
+| **Test Data Seeding** | `backend/scripts/seed.js` — 56 products, 7 vendors, 9 users with Picsum images |
 
 ---
 
 ## Known Issues & Technical Debt
 
 ### Critical
-1. **No test suite** — Both packages have placeholder test scripts (`echo "Error: no test specified" && exit 1`). No unit, integration, or E2E tests.
-2. **Stripe keys are placeholders** — `STRIPE_SECRET_KEY=sk_test_your_secret_key_here`. Payment functionality will fail until real keys are configured.
+1. **No test suite** — Both packages have placeholder test scripts. No unit, integration, or E2E tests.
+2. **Stripe keys are test-mode** — Functional but not production-ready. Need `sk_live_` / `pk_live_` keys.
 3. **JWT_SECRET is a development placeholder** — `supersecretmarketplacejwtkey2026changeinproduction`. Must be changed before production.
-4. **VendorDashboard fetches ALL products** — `axios.get('/api/products')` without a `?vendor=<userId>` filter. Shows every product from every vendor instead of just the logged-in vendor's products.
-5. **Cart `productId` stored as String** — Breaks Mongoose population lookups and referential integrity. Should be `mongoose.Schema.Types.ObjectId`.
-6. **Checkout simulates payment** — Creates Stripe PaymentIntent but marks order as paid without processing through Stripe Elements or a checkout form. COD creates order but never marks it paid.
-7. **Wrong env var syntax in `utils/api.jsx`** — Uses `process.env.REACT_APP_API_URL` (Create-React-App) instead of Vite's `import.meta.env.VITE_API_URL`. Fallback to `http://localhost:5000` works in dev but may break in production.
+4. **No production Stripe webhook** — Requires `stripe listen` CLI locally. Production needs Stripe Dashboard webhook endpoint.
 
 ### Moderate
-8. **Footer newsletter endpoint missing** — POSTs to `/api/newsletter/subscribe` which has no corresponding backend route. Always fails.
-9. **Footer links to non-existent routes** — `/vendors`, `/about`, `/contact`, `/faq`, `/account`, `/returns`, `/shipping`, `/privacy`, `/terms`, `/cookies` are not defined in React router.
-10. **AdminProducts status filter calls wrong endpoint** — Component passes `?status=active` but `GET /api/admin/products` doesn't support status query param. Filter is purely client-side and ineffective.
-11. **Review rating calculation is inefficient** — Every review create/update/delete re-queries ALL reviews for the product (`Review.find({product})`) to recalculate average. Should use MongoDB aggregation or running totals.
-12. **No input sanitization on admin user update** — `PUT /admin/users/:id` accepts any fields in `req.body` and passes them to `$set`. Could overwrite `password`, `isActive`, etc.
-13. **Vendor ownership check in order status route** — `PUT /:id/status` authorizes any vendor/admin without verifying the vendor owns items in the order. Any vendor could modify any order's status.
-14. **Currency inconsistency** — Home page and ProductCard use KES (`en-KE` locale), but Cart, Checkout, ProductDetail, Orders, and VendorDashboard use USD. Creates confusing UX.
+5. **Checkout polls for order before clearing cart** — Works as fallback but could still fail if webhook is delayed > 10s.
+6. **Review rating calculation is inefficient** — Re-queries ALL reviews for the product to recalculate average. Should use MongoDB aggregation or running totals.
+7. **Currency inconsistency** — Some components use KES, others may fall back to USD. Verify all price formatters use `en-KE` / `KES`.
 
 ### Minor / Housekeeping
-15. **`errorHandler.js` is dead code** — Imported in `server.js` but never used. An inline error handler is defined in `server.js` instead.
-16. **No email notifications** — No email service for order confirmations, shipping updates, vendor approval notifications, or password resets.
-17. **No coupon/discount system** — No promo codes, vendor-specific discounts, or site-wide sales.
-18. **No product recommendation engine** — No "customers also bought" or personalized suggestions.
-19. **No ESLint / Prettier configuration** — No code quality tooling configured.
-20. **No CI/CD pipeline** — No automated testing, linting, or deployment workflows.
+8. **`errorHandler.js` is dead code** — Not used in `server.js`.
+9. **No email notifications** — SMTP configured but no credentials provided. Need `SMTP_USER` and `SMTP_PASS` in `.env`.
+10. **No coupon/discount system** — No promo codes or site-wide sales.
+11. **No ESLint / Prettier configuration** — No code quality tooling configured.
+12. **No CI/CD pipeline** — No automated testing, linting, or deployment workflows.
 
 ---
 
@@ -516,10 +510,17 @@ CLOUDINARY_API_SECRET=your_api_secret
 
 ```bash
 # Quick start (Windows)
-# Just double-click start-fullstack.bat in the project root
+# Double-click start-fullstack.bat in the project root
+
+# Start Stripe CLI webhook forwarder
+# Double-click start-stripe.bat (opens new window)
+# Copy the whsec_... secret it outputs → paste into backend/.env STRIPE_WEBHOOK_SECRET
 
 # Start MongoDB manually (requires admin in Command Prompt)
 net start MongoDB
+
+# Seed test data (56 products, 7 vendors, 9 users)
+cd backend && node scripts/seed.js
 
 # Make a user an admin via MongoDB shell
 use marketplace
@@ -545,8 +546,10 @@ db.orders.find().pretty()
 | File | Purpose |
 |------|---------|
 | `start-fullstack.bat` | Quick-start script — opens backend + frontend in separate windows |
+| `start-stripe.bat` | Stripe CLI webhook forwarder — forwards to localhost:5000/api/webhooks/stripe |
+| `backend/scripts/seed.js` | Test data seeder — 56 products, 7 vendors, 9 users with Picsum images |
 | `backend/server.js` | Express app setup, middleware, DB connection, route mounting, inline error handler |
-| `backend/.env` | Environment configuration (ports, secrets, URLs) |
+| `backend/.env` | Environment configuration (ports, secrets, URLs, SMTP, SSL) |
 | `backend/middleware/auth.js` | JWT `protect`, `authorize(...)`, `optionalAuth` middleware |
 | `backend/middleware/upload.js` | Multer config for image uploads (5 images max, 2 MB each) |
 | `backend/middleware/errorHandler.js` | Centralized error handling (**unused — dead code**) |
