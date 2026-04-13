@@ -1,5 +1,5 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -25,6 +25,7 @@ import AdminVendors from './components/AdminVendors.jsx';
 import AdminReviews from './components/AdminReviews.jsx';
 import VendorStore from './components/VendorStore.jsx';
 import PrivateRoute from './components/PrivateRoute.jsx';
+import ScrollToTop from './components/ScrollToTop.jsx';
 
 // Context
 import { AuthProvider } from './context/AuthContext.jsx';
@@ -33,6 +34,7 @@ import { CartProvider } from './context/CartContext.jsx';
 function App() {
   return (
     <Router>
+      <ScrollToTop />
       <AuthProvider>
         <CartProvider>
           <div className="d-flex flex-column min-vh-100">
@@ -59,13 +61,19 @@ function App() {
                 <Route path="/admin/reviews" element={<PrivateRoute role="admin"><AdminReviews /></PrivateRoute>} />
               </Routes>
             </main>
-            <Footer />
+            <ConditionalFooter />
             <ToastContainer position="top-right" autoClose={3000} />
           </div>
         </CartProvider>
       </AuthProvider>
     </Router>
   );
+}
+
+function ConditionalFooter() {
+  const { pathname } = useLocation();
+  if (pathname === '/login' || pathname === '/register') return null;
+  return <Footer />;
 }
 
 export default App;

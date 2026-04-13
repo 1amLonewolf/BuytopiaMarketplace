@@ -186,8 +186,8 @@ const Products = () => {
         </Form>
       </div>
 
-      {/* Results Count */}
-      {!loading && (
+      {/* Results Count — only shown when a filter is active */}
+      {!loading && (filters.search || filters.category || filters.minPrice || filters.maxPrice || filters.minRating) && (
         <p className="text-muted mb-3 fade-in">
           <strong>{pagination.total}</strong> product{pagination.total !== 1 ? 's' : ''} found
         </p>

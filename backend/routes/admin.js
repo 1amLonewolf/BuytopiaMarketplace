@@ -61,8 +61,12 @@ router.get('/analytics', async (req, res) => {
   try {
     const { range = '30' } = req.query;
     const days = parseInt(range);
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+
+    // Use UTC dates for consistency with MongoDB
+    const now = new Date();
+    const endDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())); // Today midnight UTC
+    const startDate = new Date(endDate);
+    startDate.setUTCDate(startDate.getUTCDate() - days + 1); // Include today
 
     // Get orders within date range
     const orders = await Order.find({
@@ -74,7 +78,7 @@ router.get('/analytics', async (req, res) => {
     const dailyData = {};
     for (let i = 0; i < days; i++) {
       const date = new Date(startDate);
-      date.setDate(date.getDate() + i);
+      date.setUTCDate(date.getUTCDate() + i);
       const key = date.toISOString().split('T')[0];
       dailyData[key] = {
         date: key,
@@ -136,6 +140,7 @@ router.get('/analytics', async (req, res) => {
     newProducts.forEach(p => { if (dailyData[p._id]) dailyData[p._id].newProducts = p.count; });
 
     const analyticsData = Object.values(dailyData);
+    console.log(`📊 Admin analytics: ${days} days, ${analyticsData[analyticsData.length - 1]?.date} — users: ${analyticsData.reduce((s, d) => s + d.newUsers, 0)}, products: ${analyticsData.reduce((s, d) => s + d.newProducts, 0)}, orders: ${analyticsData.reduce((s, d) => s + d.orders, 0)}`);
 
     res.json({ success: true, data: analyticsData });
   } catch (error) {

@@ -22,7 +22,7 @@ const Home = () => {
     try {
       const [featuredRes, recentRes] = await Promise.all([
         axios.get('/api/products/featured'),
-        axios.get('/api/products?sort=createdAt:desc&limit=4')
+        axios.get('/api/products?sort=createdAt:desc&limit=5')
       ]);
 
       setFeaturedProducts(featuredRes.data.data || []);
@@ -228,7 +228,7 @@ const Home = () => {
       </Container>
     </div>
 
-      {/* Featured Products */}
+      {/* Featured Products — Horizontal Layout */}
       {featuredProducts.length > 0 && (
         <Reveal>
         <Container className="py-5 section-fade-both fade-in">
@@ -240,20 +240,53 @@ const Home = () => {
               View All <FaArrowRight className="ms-2" />
             </Link>
           </div>
-          <Row>
-            {featuredProducts.map((product, index) => (
-              <Reveal delay={index % 4 + 1}>
-              <Col key={product._id} md={3} sm={6} className="mb-4">
-                <ProductCard product={product} />
-              </Col>
-              </Reveal>
-            ))}
-          </Row>
+          <div className="horizontal-products-scroll">
+            <div className="horizontal-scroll-track" style={{ paddingBottom: '0.5rem' }}>
+              {featuredProducts.map((product) => (
+                <div key={product._id} className="horizontal-product-card flex-shrink-0">
+                  <Link to={`/products/${product._id}`} className="text-decoration-none text-dark">
+                    <div className="horizontal-product-image">
+                      {product.images?.[0] ? (
+                        <img src={product.images[0]} alt={product.name} />
+                      ) : (
+                        <div className="placeholder-img d-flex align-items-center justify-content-center bg-light">
+                          <FaShippingFast size={40} className="text-muted" />
+                        </div>
+                      )}
+                      {product.compareAtPrice && product.compareAtPrice > product.price && (
+                        <span className="discount-badge">-{Math.round((1 - product.price / product.compareAtPrice) * 100)}%</span>
+                      )}
+                      {product.isFeatured && (
+                        <span className="featured-badge">★ Featured</span>
+                      )}
+                    </div>
+                    <div className="horizontal-product-info">
+                      <h6 className="fw-semibold mb-1 text-truncate" style={{ maxWidth: '180px' }} title={product.name}>
+                        {product.name}
+                      </h6>
+                      <div className="d-flex align-items-center gap-2">
+                        <span className="price-text fw-bold">KSh {product.price.toLocaleString()}</span>
+                        {product.compareAtPrice && (
+                          <del className="text-muted small">KSh {product.compareAtPrice.toLocaleString()}</del>
+                        )}
+                      </div>
+                      {product.rating > 0 && (
+                        <div className="d-flex align-items-center gap-1 mt-1">
+                          <FaStar className="text-warning" size={12} />
+                          <small className="text-muted">{product.rating.toFixed(1)} ({product.numReviews})</small>
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
         </Container>
         </Reveal>
       )}
 
-      {/* Recent Products */}
+      {/* Recent Products — Horizontal Layout */}
       <Reveal>
       <Container className="py-5 section-fade-top fade-in">
         <div className="d-flex justify-content-between align-items-center mb-4">
@@ -264,15 +297,45 @@ const Home = () => {
             View All <FaArrowRight className="ms-2" />
           </Link>
         </div>
-        <Row>
-          {recentProducts.map((product, index) => (
-            <Reveal delay={index % 4 + 1}>
-            <Col key={product._id} md={3} sm={6} className="mb-4">
-              <ProductCard product={product} />
-            </Col>
-            </Reveal>
-          ))}
-        </Row>
+        <div className="horizontal-products-scroll">
+          <div className="horizontal-scroll-track" style={{ paddingBottom: '0.5rem' }}>
+            {recentProducts.map((product) => (
+              <div key={product._id} className="horizontal-product-card flex-shrink-0">
+                <Link to={`/products/${product._id}`} className="text-decoration-none text-dark">
+                  <div className="horizontal-product-image">
+                    {product.images?.[0] ? (
+                      <img src={product.images[0]} alt={product.name} />
+                    ) : (
+                      <div className="placeholder-img d-flex align-items-center justify-content-center bg-light">
+                        <FaShippingFast size={40} className="text-muted" />
+                      </div>
+                    )}
+                    {product.compareAtPrice && product.compareAtPrice > product.price && (
+                      <span className="discount-badge">-{Math.round((1 - product.price / product.compareAtPrice) * 100)}%</span>
+                    )}
+                  </div>
+                  <div className="horizontal-product-info">
+                    <h6 className="fw-semibold mb-1 text-truncate" style={{ maxWidth: '180px' }} title={product.name}>
+                      {product.name}
+                    </h6>
+                    <div className="d-flex align-items-center gap-2">
+                      <span className="price-text fw-bold">KSh {product.price.toLocaleString()}</span>
+                      {product.compareAtPrice && (
+                        <del className="text-muted small">KSh {product.compareAtPrice.toLocaleString()}</del>
+                      )}
+                    </div>
+                    {product.rating > 0 && (
+                      <div className="d-flex align-items-center gap-1 mt-1">
+                        <FaStar className="text-warning" size={12} />
+                        <small className="text-muted">{product.rating.toFixed(1)} ({product.numReviews})</small>
+                      </div>
+                    )}
+                  </div>
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
       </Container>
       </Reveal>
     </div>

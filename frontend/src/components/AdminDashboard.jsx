@@ -15,6 +15,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState([]);
   const [analyticsRange, setAnalyticsRange] = useState('30');
+  const [analyticsError, setAnalyticsError] = useState(null);
 
   useEffect(() => {
     fetchDashboard();
@@ -23,10 +24,12 @@ const AdminDashboard = () => {
 
   const fetchAnalytics = async () => {
     try {
+      setAnalyticsError(null);
       const response = await axios.get(`/api/admin/analytics?range=${analyticsRange}`);
       setAnalytics(response.data.data || []);
     } catch (error) {
       console.error('Failed to fetch admin analytics:', error);
+      setAnalyticsError(error.response?.data?.message || 'Failed to load analytics');
     }
   };
 
@@ -304,7 +307,13 @@ const AdminDashboard = () => {
             </div>
           </div>
 
-          {analytics.length > 0 ? (
+          {analyticsError ? (
+            <div className="text-center py-5 text-danger">
+              <h6 className="fw-bold">Error loading analytics</h6>
+              <p className="mb-0" style={{ fontSize: '0.875rem' }}>{analyticsError}</p>
+              <Button variant="outline-danger" size="sm" className="mt-2" onClick={fetchAnalytics}>Retry</Button>
+            </div>
+          ) : analytics.length > 0 ? (
             <>
               {/* Revenue & Orders */}
               <h6 className="fw-bold mb-3 text-muted">Revenue & Orders</h6>
@@ -365,8 +374,11 @@ const AdminDashboard = () => {
           ) : (
             <div className="text-center py-5 text-muted">
               <FaChartLine size={48} className="mb-3" />
-              <h6 className="fw-bold">No analytics data available</h6>
-              <p className="mb-0" style={{ fontSize: '0.875rem' }}>Analytics will appear as users register and orders come in.</p>
+              <h6 className="fw-bold">No activity in this period</h6>
+              <p className="mb-0" style={{ fontSize: '0.875rem' }}>Analytics will populate as users register, vendors join, and orders come in.</p>
+              <p className="mt-1" style={{ fontSize: '0.8rem', color: '#adb5bd' }}>
+                Stats cards above show current totals. Charts update when new activity occurs.
+              </p>
             </div>
           )}
         </Card.Body>

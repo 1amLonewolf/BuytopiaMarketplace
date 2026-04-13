@@ -20,51 +20,72 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
   // Handle successful payment
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
+
+    // Idempotency check — prevent duplicate orders from webhook retries
+    const existingOrder = await Order.findOne({ 'paymentResult.id': session.payment_intent });
+    if (existingOrder) {
+      console.log(`⚠️  Duplicate webhook: order ${existingOrder._id} already exists for payment ${session.payment_intent}`);
+      return res.json({ received: true });
+    }
+
     const { userId, itemsJSON, shippingAddressJSON, itemsPrice, shippingPrice, totalPrice } = session.metadata;
 
     try {
-      // 1. Parse metadata
+      // Parse metadata
       const orderItems = JSON.parse(itemsJSON);
       const shippingAddress = JSON.parse(shippingAddressJSON);
 
-      // FIX 1: Ensure zipCode exists (Schema requires it, but Kenyan forms might not send it)
+      // Ensure zipCode exists (Schema requires it, but Kenyan forms might not send it)
       if (!shippingAddress.zipCode) {
         shippingAddress.zipCode = "00100"; // Default to Nairobi
       }
 
-      // FIX 2: Generate Order Number manually to bypass validation requirement
+      // Validate metadata exists
+      if (!itemsPrice || !shippingPrice || !totalPrice) {
+        throw new Error('Missing required metadata fields');
+      }
+
+      // Generate Order Number
       const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-      // 2. Create Order in DB
+      // Create Order in DB
       const order = await Order.create({
-        orderNumber: orderNumber, // Manually set to satisfy validation
+        orderNumber,
         user: userId,
         items: orderItems,
-        shippingAddress: shippingAddress,
+        shippingAddress,
         paymentMethod: 'Stripe',
         itemsPrice: parseFloat(itemsPrice),
         shippingPrice: parseFloat(shippingPrice),
         totalPrice: parseFloat(totalPrice),
+        taxPrice: 0,
         isPaid: true,
         paidAt: new Date(),
         status: 'processing',
         paymentResult: {
           id: session.payment_intent,
-          status: 'paid',
+          status: 'succeeded',
           email_address: session.customer_details?.email || ''
         }
       });
 
-      // 3. Deduct inventory & increment sales
+      // Deduct inventory & increment sales
       for (const item of orderItems) {
-        await Product.findByIdAndUpdate(item.product, {
-          $inc: { inventory: -item.quantity, totalSales: item.quantity }
-        });
+        const product = await Product.findById(item.product);
+        if (product) {
+          await Product.findByIdAndUpdate(item.product, {
+            $inc: { inventory: -item.quantity, totalSales: item.quantity }
+          });
+        } else {
+          console.warn(`⚠️  Product ${item.product} not found — skipped inventory deduction`);
+        }
       }
 
       console.log(`✅ Order ${order._id} created & paid via Stripe`);
     } catch (err) {
       console.error('❌ Webhook Order Creation Error:', err);
+      // Return 500 so Stripe retries the webhook
+      return res.status(500).send('Webhook handler failed');
     }
   }
 

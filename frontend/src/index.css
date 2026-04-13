@@ -662,8 +662,8 @@ code {
 }
 
 .product-card:hover {
-  transform: translateY(-6px);
-  box-shadow: var(--shadow-xl);
+  transform: translateY(-8px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
 }
 
 .product-image-wrapper {
@@ -1296,6 +1296,112 @@ code {
 .scroll-animate.visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* ========================================
+   HORIZONTAL PRODUCT CARDS (HOME PAGE)
+   ======================================== */
+.horizontal-products-scroll {
+  overflow: visible;
+  -webkit-overflow-scrolling: touch;
+}
+
+.horizontal-products-scroll .horizontal-scroll-track {
+  display: flex;
+  gap: 16px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding-top: 16px;
+  padding-bottom: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: #c4b5fd transparent;
+}
+
+.horizontal-products-scroll .horizontal-scroll-track::-webkit-scrollbar {
+  height: 6px;
+}
+
+.horizontal-products-scroll .horizontal-scroll-track::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.horizontal-products-scroll .horizontal-scroll-track::-webkit-scrollbar-thumb {
+  background: #c4b5fd;
+  border-radius: 3px;
+}
+
+.horizontal-products-scroll .horizontal-scroll-track::-webkit-scrollbar-thumb:hover {
+  background: #a78bfa;
+}
+
+.horizontal-product-card {
+  width: 220px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  overflow: visible;
+}
+
+.horizontal-product-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+}
+
+.horizontal-product-image {
+  position: relative;
+  width: 100%;
+  height: 160px;
+  background: #f3f4f6;
+  overflow: hidden;
+  border-radius: 12px 12px 0 0;
+}
+
+.horizontal-product-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.horizontal-product-image .placeholder-img {
+  width: 100%;
+  height: 100%;
+}
+
+.discount-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  z-index: 2;
+}
+
+.featured-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  z-index: 2;
+}
+
+.horizontal-product-info {
+  padding: 10px 12px 14px;
+}
+
+.horizontal-product-info .price-text {
+  color: #7c3aed;
+  font-size: 0.95rem;
 }
 
 /* ========================================

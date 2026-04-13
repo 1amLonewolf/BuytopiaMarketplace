@@ -26,11 +26,29 @@ const Checkout = () => {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    
+
     if (params.get('success')) {
-      // Redirected from Stripe success page
-      clearCart();
-      navigate('/orders');
+      // Poll for the order to confirm webhook has processed it
+      const pollOrder = async () => {
+        for (let attempt = 0; attempt < 10; attempt++) {
+          try {
+            const res = await axios.get('/api/orders');
+            if (res.data.data && res.data.data.length > 0) {
+              // Order exists — clear cart and redirect
+              await clearCart();
+              navigate('/orders');
+              return;
+            }
+          } catch {
+            // Orders endpoint may not be ready yet
+          }
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        // After 10 attempts, clear cart anyway and redirect
+        await clearCart();
+        navigate('/orders');
+      };
+      pollOrder();
       return;
     }
 
@@ -45,8 +63,15 @@ const Checkout = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+
+    if (!formData.paymentMethod) {
+      setError('Please select a payment method');
+      toast.error('Please select a payment method');
+      return;
+    }
+
+    setLoading(true);
 
     try {
       // If card payment, redirect to Stripe Checkout
@@ -75,11 +100,15 @@ const Checkout = () => {
         return;
       }
 
-      // Cash on Delivery flow
+      // Cash on Delivery flow (also used for M-Pesa since STK push not yet implemented)
       const orderData = {
         items: cart.items.map(item => ({
           product: item.productId,
-          quantity: item.quantity
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          image: item.image,
+          vendor: item.vendor
         })),
         shippingAddress: {
           name: formData.name,
@@ -89,7 +118,7 @@ const Checkout = () => {
           country: formData.country,
           phone: formData.phone
         },
-        paymentMethod: 'cod'
+        paymentMethod: formData.paymentMethod === 'mpesa' ? 'M-Pesa' : 'Cash on Delivery'
       };
 
       await axios.post('/api/orders', orderData);
