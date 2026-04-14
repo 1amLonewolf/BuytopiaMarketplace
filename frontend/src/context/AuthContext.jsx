@@ -41,25 +41,24 @@ export const AuthProvider = ({ children }) => {
     const response = await axios.post('/api/auth/login', { email, password });
     const { token, ...userData } = response.data.data;
 
-    // Merge guest cart before login
+    // Merge guest cart before login (parallel with error handling)
     const guestCart = localStorage.getItem('cart');
     if (guestCart) {
       const parsedCart = JSON.parse(guestCart);
       if (parsedCart.items?.length > 0) {
-        for (const item of parsedCart.items) {
-          try {
-            await axios.post('/api/cart/add', {
+        // Use Promise.allSettled to merge all items in parallel
+        await Promise.allSettled(
+          parsedCart.items.map(item =>
+            axios.post('/api/cart/add', {
               productId: item.productId,
               name: item.name,
               price: item.price,
               quantity: item.quantity,
               image: item.image,
               vendor: item.vendor
-            });
-          } catch (e) {
-            // Skip items that fail to merge
-          }
-        }
+            })
+          )
+        );
         localStorage.removeItem('cart');
       }
     }

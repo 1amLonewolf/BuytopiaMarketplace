@@ -65,6 +65,11 @@ router.post('/', protect, [
     const totalPrice = itemsPrice + taxPrice + shippingPrice;
 
     // Create order
+    // Ensure zipCode exists
+    if (!shippingAddress.zipCode) {
+      shippingAddress.zipCode = "00100";
+    }
+
     const order = await Order.create({
       user: req.user.id,
       items: orderItems,
@@ -352,9 +357,35 @@ router.post('/checkout-session', protect, async (req, res) => {
 
     // 2. Calculate totals
     const shippingPrice = itemsPrice > 50 ? 0 : 10;
-    const totalPrice = itemsPrice + shippingPrice; // Tax removed as per earlier request
+    const totalPrice = itemsPrice + shippingPrice;
 
-    // 3. Create Stripe Checkout Session
+    // 3. Deduct inventory IMMEDIATELY (prevents race conditions)
+    for (const item of orderItems) {
+      await Product.findByIdAndUpdate(item.product, {
+        $inc: { inventory: -item.quantity, totalSales: item.quantity }
+      });
+    }
+
+    // 4. Create order in DB as "pending" (so it exists even if webhook is delayed)
+    // Ensure zipCode exists
+    if (!shippingAddress.zipCode) {
+      shippingAddress.zipCode = "00100"; // Default to Nairobi
+    }
+
+    const order = await Order.create({
+      user: req.user.id,
+      items: orderItems,
+      shippingAddress,
+      paymentMethod: 'Stripe',
+      itemsPrice,
+      shippingPrice,
+      totalPrice,
+      taxPrice: 0,
+      isPaid: false,
+      status: 'pending'
+    });
+
+    // 5. Create Stripe Checkout Session with order ID
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: orderItems.map(item => ({
@@ -364,7 +395,7 @@ router.post('/checkout-session', protect, async (req, res) => {
             name: item.name,
             images: item.image ? [item.image] : []
           },
-          unit_amount: Math.round(item.price * 100), // Stripe expects cents
+          unit_amount: Math.round(item.price * 100),
         },
         quantity: item.quantity
       })),
@@ -373,19 +404,15 @@ router.post('/checkout-session', protect, async (req, res) => {
       },
       customer_email: req.user.email,
       mode: 'payment',
-      success_url: `${process.env.CLIENT_URL}/orders?success=true`,
+      success_url: `${process.env.CLIENT_URL}/checkout?success=true&orderId=${order._id}`,
       cancel_url: `${process.env.CLIENT_URL}/checkout?canceled=true`,
       metadata: {
-        userId: req.user.id,
-        itemsJSON: JSON.stringify(orderItems),
-        shippingAddressJSON: JSON.stringify(shippingAddress),
-        itemsPrice,
-        shippingPrice,
-        totalPrice
+        orderId: order._id.toString(),
+        userId: req.user.id
       }
     });
 
-    res.json({ success: true, url: session.url });
+    res.json({ success: true, url: session.url, orderId: order._id });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

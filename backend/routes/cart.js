@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const Cart = require('../models/Cart');
 const { protect } = require('../middleware/auth');
 
@@ -32,14 +33,21 @@ router.post('/add', protect, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid item data' });
     }
 
+    // Validate productId is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return res.status(400).json({ success: false, message: 'Invalid product ID' });
+    }
+
     let cart = await Cart.findOne({ user: req.user.id });
 
     if (!cart) {
       cart = await Cart.create({ user: req.user.id, items: [] });
     }
 
-    // Check if item already exists in cart
-    const existingItemIndex = cart.items.findIndex(item => item.productId === productId);
+    // Check if item already exists in cart (compare as strings)
+    const existingItemIndex = cart.items.findIndex(
+      item => item.productId.toString() === productId
+    );
 
     if (existingItemIndex > -1) {
       // Update quantity
@@ -77,7 +85,9 @@ router.put('/:productId', protect, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Cart not found' });
     }
 
-    const itemIndex = cart.items.findIndex(item => item.productId === req.params.productId);
+    const itemIndex = cart.items.findIndex(
+      item => item.productId.toString() === req.params.productId
+    );
 
     if (itemIndex === -1) {
       return res.status(404).json({ success: false, message: 'Item not found in cart' });
@@ -110,7 +120,9 @@ router.delete('/:productId', protect, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Cart not found' });
     }
 
-    const itemIndex = cart.items.findIndex(item => item.productId === req.params.productId);
+    const itemIndex = cart.items.findIndex(
+      item => item.productId.toString() === req.params.productId
+    );
 
     if (itemIndex === -1) {
       return res.status(404).json({ success: false, message: 'Item not found in cart' });

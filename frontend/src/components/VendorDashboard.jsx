@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Table, Badge, Button, Modal, Form } from 'react-bootstrap';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { useAuth } from '../context/AuthContext.jsx';
 import Reveal from './Reveal.jsx';
 import { FaBox, FaDollarSign, FaShoppingBag, FaPlus, FaEdit, FaTrash, FaTimes, FaChartLine } from 'react-icons/fa';
 import {
@@ -10,6 +11,7 @@ import {
 } from 'recharts';
 
 const VendorDashboard = () => {
+  const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,7 +65,8 @@ const VendorDashboard = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await axios.get('/api/products');
+      // Fetch only this vendor's own products
+      const response = await axios.get(`/api/products?vendor=${user._id}`);
       setProducts(response.data.data || []);
     } catch (error) {
       console.error('Failed to fetch products:', error);

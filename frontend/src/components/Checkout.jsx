@@ -28,27 +28,49 @@ const Checkout = () => {
     const params = new URLSearchParams(window.location.search);
 
     if (params.get('success')) {
-      // Poll for the order to confirm webhook has processed it
-      const pollOrder = async () => {
-        for (let attempt = 0; attempt < 10; attempt++) {
-          try {
-            const res = await axios.get('/api/orders');
-            if (res.data.data && res.data.data.length > 0) {
-              // Order exists — clear cart and redirect
+      const orderId = params.get('orderId');
+
+      const handleSuccess = async () => {
+        try {
+          if (orderId) {
+            // Fetch the specific order directly
+            const res = await axios.get(`/api/orders/${orderId}`);
+            if (res.data.data) {
               await clearCart();
+              toast.success('Payment successful! Your order has been placed.');
               navigate('/orders');
               return;
             }
-          } catch {
-            // Orders endpoint may not be ready yet
           }
-          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          // Fallback: poll for any recent order
+          for (let attempt = 0; attempt < 10; attempt++) {
+            try {
+              const res = await axios.get('/api/orders');
+              if (res.data.data && res.data.data.length > 0) {
+                await clearCart();
+                toast.success('Payment successful! Your order has been placed.');
+                navigate('/orders');
+                return;
+              }
+            } catch {
+              // Orders endpoint may not be ready yet
+            }
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+
+          // After polling, clear cart and redirect anyway
+          await clearCart();
+          toast.success('Order placed! Check your orders for details.');
+          navigate('/orders');
+        } catch (err) {
+          console.error('Order fetch error:', err);
+          await clearCart();
+          navigate('/orders');
         }
-        // After 10 attempts, clear cart anyway and redirect
-        await clearCart();
-        navigate('/orders');
       };
-      pollOrder();
+
+      handleSuccess();
       return;
     }
 
@@ -100,7 +122,90 @@ const Checkout = () => {
         return;
       }
 
-      // Cash on Delivery flow (also used for M-Pesa since STK push not yet implemented)
+      // M-Pesa STK Push flow
+      if (formData.paymentMethod === 'mpesa') {
+        if (!formData.phone) {
+          setError('Please enter your M-Pesa phone number');
+          toast.error('Please enter your M-Pesa phone number');
+          setLoading(false);
+          return;
+        }
+
+        // Step 1: Create order
+        const orderData = {
+          items: cart.items.map(item => ({
+            product: item.productId,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            image: item.image,
+            vendor: item.vendor
+          })),
+          shippingAddress: {
+            name: formData.name,
+            street: formData.street + (formData.building ? `, ${formData.building}` : ''),
+            city: formData.city,
+            state: formData.county,
+            country: formData.country,
+            phone: formData.phone
+          },
+          paymentMethod: 'M-Pesa'
+        };
+
+        const orderResponse = await axios.post('/api/orders', orderData);
+        const order = orderResponse.data.data;
+
+        // Step 2: Initiate STK Push
+        toast.info('Sending M-Pesa prompt to your phone...', { autoClose: 5000 });
+
+        const stkResponse = await axios.post('/api/mpesa/stk-push', {
+          phoneNumber: formData.phone,
+          amount: total,
+          orderId: order._id
+        });
+
+        const checkoutRequestID = stkResponse.data.data.CheckoutRequestID;
+
+        // Step 3: Poll for payment status
+        for (let attempt = 0; attempt < 30; attempt++) {
+          await new Promise(resolve => setTimeout(resolve, 3000));
+
+          try {
+            const statusResponse = await axios.get(`/api/mpesa/status/${checkoutRequestID}`);
+            const { ResultCode } = statusResponse.data.data;
+
+            if (ResultCode === 0) {
+              // Payment successful
+              await clearCart();
+              toast.success('M-Pesa payment successful! Order confirmed.');
+              navigate('/orders');
+              return;
+            } else if (ResultCode === 1032) {
+              // User canceled
+              setError('Payment was canceled. Your cart is still available.');
+              toast.info('Payment was canceled.');
+              setLoading(false);
+              return;
+            }
+          } catch {
+            // Still processing, continue polling
+          }
+        }
+
+        // After polling, check order status directly
+        const finalOrder = await axios.get(`/api/orders/${order._id}`);
+        if (finalOrder.data.data.isPaid) {
+          await clearCart();
+          toast.success('M-Pesa payment confirmed!');
+          navigate('/orders');
+        } else {
+          toast.info('Payment is still processing. You will receive a confirmation once completed.');
+          navigate('/orders');
+        }
+        return;
+      }
+
+      // Cash on Delivery flow
       const orderData = {
         items: cart.items.map(item => ({
           product: item.productId,
@@ -118,7 +223,7 @@ const Checkout = () => {
           country: formData.country,
           phone: formData.phone
         },
-        paymentMethod: formData.paymentMethod === 'mpesa' ? 'M-Pesa' : 'Cash on Delivery'
+        paymentMethod: 'Cash on Delivery'
       };
 
       await axios.post('/api/orders', orderData);
@@ -126,8 +231,11 @@ const Checkout = () => {
       toast.success('Order placed successfully!');
       navigate('/orders');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to place order');
-      toast.error('Failed to place order');
+      console.error('Checkout error:', err.response?.data);
+      const errorMsg = err.response?.data?.message ||
+                       (err.response?.data?.errors ? err.response.data.errors.map(e => e.msg).join(', ') : 'Failed to place order');
+      setError(errorMsg);
+      toast.error(errorMsg, { autoClose: 8000 });
     } finally {
       setLoading(false);
     }

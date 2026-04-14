@@ -20,45 +20,28 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
   // Handle successful payment
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-
-    // Idempotency check — prevent duplicate orders from webhook retries
-    const existingOrder = await Order.findOne({ 'paymentResult.id': session.payment_intent });
-    if (existingOrder) {
-      console.log(`⚠️  Duplicate webhook: order ${existingOrder._id} already exists for payment ${session.payment_intent}`);
-      return res.json({ received: true });
-    }
-
-    const { userId, itemsJSON, shippingAddressJSON, itemsPrice, shippingPrice, totalPrice } = session.metadata;
+    const { orderId } = session.metadata;
 
     try {
-      // Parse metadata
-      const orderItems = JSON.parse(itemsJSON);
-      const shippingAddress = JSON.parse(shippingAddressJSON);
-
-      // Ensure zipCode exists (Schema requires it, but Kenyan forms might not send it)
-      if (!shippingAddress.zipCode) {
-        shippingAddress.zipCode = "00100"; // Default to Nairobi
+      if (!orderId) {
+        throw new Error('Missing orderId in session metadata');
       }
 
-      // Validate metadata exists
-      if (!itemsPrice || !shippingPrice || !totalPrice) {
-        throw new Error('Missing required metadata fields');
+      // Find the existing order (created during checkout session)
+      const order = await Order.findById(orderId);
+
+      if (!order) {
+        throw new Error(`Order ${orderId} not found`);
       }
 
-      // Generate Order Number
-      const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      // Idempotency check — prevent double payment
+      if (order.isPaid) {
+        console.log(`⚠️  Duplicate webhook: order ${order._id} already marked as paid`);
+        return res.json({ received: true });
+      }
 
-      // Create Order in DB
-      const order = await Order.create({
-        orderNumber,
-        user: userId,
-        items: orderItems,
-        shippingAddress,
-        paymentMethod: 'Stripe',
-        itemsPrice: parseFloat(itemsPrice),
-        shippingPrice: parseFloat(shippingPrice),
-        totalPrice: parseFloat(totalPrice),
-        taxPrice: 0,
+      // Mark order as paid (use findByIdAndUpdate to skip validation)
+      await Order.findByIdAndUpdate(orderId, {
         isPaid: true,
         paidAt: new Date(),
         status: 'processing',
@@ -69,23 +52,34 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
         }
       });
 
-      // Deduct inventory & increment sales
-      for (const item of orderItems) {
-        const product = await Product.findById(item.product);
-        if (product) {
-          await Product.findByIdAndUpdate(item.product, {
-            $inc: { inventory: -item.quantity, totalSales: item.quantity }
-          });
-        } else {
-          console.warn(`⚠️  Product ${item.product} not found — skipped inventory deduction`);
-        }
-      }
-
-      console.log(`✅ Order ${order._id} created & paid via Stripe`);
+      console.log(`✅ Order ${order._id} marked as paid via Stripe webhook`);
     } catch (err) {
-      console.error('❌ Webhook Order Creation Error:', err);
-      // Return 500 so Stripe retries the webhook
+      console.error('❌ Webhook Order Update Error:', err);
       return res.status(500).send('Webhook handler failed');
+    }
+  }
+
+  // Handle canceled checkout — restore inventory
+  if (event.type === 'checkout.session.expired') {
+    const session = event.data.object;
+    const { orderId } = session.metadata;
+
+    if (orderId) {
+      try {
+        const order = await Order.findById(orderId);
+        if (order && !order.isPaid && order.status === 'pending') {
+          // Restore inventory
+          for (const item of order.items) {
+            await Product.findByIdAndUpdate(item.product, {
+              $inc: { inventory: item.quantity, totalSales: -item.quantity }
+            });
+          }
+          await Order.findByIdAndUpdate(orderId, { status: 'cancelled' });
+          console.log(`🔄 Order ${order._id} cancelled — inventory restored`);
+        }
+      } catch (err) {
+        console.error('❌ Webhook Cancel Error:', err);
+      }
     }
   }
 

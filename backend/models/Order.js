@@ -112,17 +112,12 @@ const orderSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Generate order number before saving
-// Note: Handled manually in webhook/checkout to ensure immediate availability
-orderSchema.pre('save', function(next) {
+// Generate order number BEFORE validation (so it passes required check)
+orderSchema.pre('validate', function() {
   if (this.isNew && !this.orderNumber) {
     const timestamp = Date.now().toString(36);
     const random = Math.random().toString(36).substring(2, 8).toUpperCase();
     this.orderNumber = `ORD-${timestamp}-${random}`;
-  }
-  // Check if next is actually a function to prevent crashes in certain Mongoose versions
-  if (typeof next === 'function') {
-    next();
   }
 });
 

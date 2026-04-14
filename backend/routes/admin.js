@@ -284,13 +284,19 @@ router.get('/products', async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    const products = await Product.find()
+    // Build query — support status filter
+    let query = {};
+    if (req.query.status) {
+      query.status = req.query.status;
+    }
+
+    const products = await Product.find(query)
       .populate('vendor', 'name email vendorProfile')
       .sort({ createdAt: -1 })
       .limit(limit)
       .skip(skip);
 
-    const total = await Product.countDocuments();
+    const total = await Product.countDocuments(query);
 
     res.json({
       success: true,
