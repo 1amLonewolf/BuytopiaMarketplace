@@ -7,7 +7,13 @@ const Product = require('../models/Product');
 const User = require('../models/User');
 const { protect, authorize } = require('../middleware/auth');
 
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+// Lazy-init Stripe — only when key is available
+let stripe;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+} else {
+  console.warn('⚠️  STRIPE_SECRET_KEY not set — Stripe routes will be disabled');
+}
 
 // @route   POST /api/orders
 // @desc    Create a new order
@@ -332,6 +338,10 @@ router.post('/create-payment-intent', protect, async (req, res) => {
 // @desc    Create Stripe Checkout Session
 // @access  Private
 router.post('/checkout-session', protect, async (req, res) => {
+  if (!stripe) {
+    return res.status(503).json({ success: false, message: 'Stripe is not configured. Set STRIPE_SECRET_KEY in environment variables.' });
+  }
+
   try {
     const { items, shippingAddress } = req.body;
 

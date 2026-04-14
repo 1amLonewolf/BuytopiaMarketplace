@@ -1,13 +1,25 @@
 const express = require('express');
 const router = express.Router();
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const Order = require('../models/Order');
 const Product = require('../models/Product');
+
+// Lazy-init Stripe — only when key is available
+let stripe;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+} else {
+  console.warn('⚠️  STRIPE_SECRET_KEY not set — Stripe webhook disabled');
+}
 
 // @route   POST /api/webhooks/stripe
 // @desc    Handle Stripe Checkout completion
 // @access  Public (verified via signature)
 router.post('/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+  if (!stripe) {
+    console.warn('⚠️  Stripe webhook received but not configured');
+    return res.status(503).send('Stripe not configured');
+  }
+
   const sig = req.headers['stripe-signature'];
   let event;
 
