@@ -8,6 +8,17 @@ const helmet = require('helmet');
 // Load env variables
 dotenv.config();
 
+// Debug: Check if env vars are loaded
+console.log('🔍 ENV CHECK:', {
+  STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY ? `✅ SET (${process.env.STRIPE_SECRET_KEY.substring(0, 8)}...)` : '❌ MISSING',
+  MONGODB_URI: process.env.MONGODB_URI ? `✅ SET (${process.env.MONGODB_URI.substring(0, 20)}...)` : '❌ MISSING',
+  JWT_SECRET: process.env.JWT_SECRET ? `✅ SET (${process.env.JWT_SECRET.substring(0, 8)}...)` : '❌ MISSING',
+  MPESA_CONSUMER_KEY: process.env.MPESA_CONSUMER_KEY ? `✅ SET (${process.env.MPESA_CONSUMER_KEY.substring(0, 8)}...)` : '❌ MISSING',
+  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME ? '✅ SET' : '❌ MISSING',
+  NODE_ENV: process.env.NODE_ENV || '❌ MISSING',
+  CLIENT_URL: process.env.CLIENT_URL || '❌ MISSING',
+});
+
 // Import routes
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
