@@ -4,7 +4,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@rollup/rollup-win32-x64-msvc": "^4.60.1",
     "@vitejs/plugin-react": "^4.2.0",
     "axios": "^1.6.2",
     "bootstrap": "^5.3.2",
