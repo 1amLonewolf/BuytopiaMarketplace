@@ -117,7 +117,11 @@ app.use('/api/products', productRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Buytopia Marketplace API is running' });
+  res.status(200).json({ status: 'OK', message: 'Buytopia Marketplace API is running' });
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK' });
 });
 
 // Error handling middleware (centralized)
