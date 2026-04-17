@@ -115,6 +115,11 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/products', uploadRoutes);
 app.use('/api/products', productRoutes);
 
+// Root route
+app.get('/', (req, res) => {
+  res.json({ message: 'Buytopia Marketplace API', version: '1.0.0' });
+});
+
 // Health check - works even if MongoDB is down
 app.get('/api/health', (req, res) => {
   const mongoState = mongoose.connection.readyState;
@@ -132,6 +137,11 @@ app.get('/health', (req, res) => {
 // Error handling middleware (centralized)
 const errorHandler = require('./middleware/errorHandler');
 app.use(errorHandler);
+
+// 404 handler - catch unmatched routes
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: 'Route not found', path: req.path });
+});
 
 const PORT = process.env.PORT || 5000;
 
