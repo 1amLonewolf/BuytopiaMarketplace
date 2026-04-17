@@ -1,8 +1,8 @@
 {
   "$schema": "https://railway.app/schema.json",
   "build": {
-    "builder": "NIXPACKS",
-    "rootDir": "backend"
+    "builder": "DOCKER",
+    "image": "node:20-alpine"
   },
   "deploy": {
     "numReplicas": 1,
