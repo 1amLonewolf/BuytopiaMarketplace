@@ -115,13 +115,18 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/products', uploadRoutes);
 app.use('/api/products', productRoutes);
 
-// Health check
+// Health check - works even if MongoDB is down
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'OK', message: 'Buytopia Marketplace API is running' });
+  const mongoState = mongoose.connection.readyState;
+  res.status(200).json({ 
+    status: 'OK', 
+    message: 'Buytopia Marketplace API is running',
+    mongodb: mongoState === 1 ? 'connected' : 'disconnected'
+  });
 });
 
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK' });
+  res.status(200).json({ status: 'OK', mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' });
 });
 
 // Error handling middleware (centralized)
