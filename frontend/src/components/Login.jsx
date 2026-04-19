@@ -82,7 +82,15 @@ const Login = () => {
         toast.error(errorMsg, { autoClose: 10000 });
       } else {
         setRateLimited(false);
-        const errorMsg = err.response?.data?.message || 'Network error or server offline';
+        const fromServer = err.response?.data?.message;
+        const isNetwork =
+          !err.response &&
+          (err.code === 'ERR_NETWORK' || err.message === 'Network Error');
+        const errorMsg =
+          fromServer ||
+          (isNetwork
+            ? 'Cannot reach the API. On Vercel, leave VITE_API_URL empty so /api uses rewrites, or set it to your backend URL.'
+            : err.message || 'Network error or server offline');
         setError(errorMsg);
         toast.error(errorMsg);
       }
