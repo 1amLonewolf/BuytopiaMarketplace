@@ -4,6 +4,11 @@ const { body, validationResult } = require('express-validator');
 const Product = require('../models/Product');
 const { protect, authorize, optionalAuth } = require('../middleware/auth');
 
+// Public catalog: only `active` counts; legacy/imported docs often omit `status` — those would match nothing with { status: 'active' } alone.
+const publicStorefrontStatus = {
+  $or: [{ status: 'active' }, { status: { $exists: false } }]
+};
+
 // @route   GET /api/products
 // @desc    Get all products with filtering, sorting, and pagination
 // @access  Public
@@ -14,7 +19,7 @@ router.get('/', optionalAuth, async (req, res) => {
     const skip = (page - 1) * limit;
 
     // Build query
-    let query = { status: 'active' };
+    let query = { ...publicStorefrontStatus };
 
     // Filter by category
     if (req.query.category) {
@@ -83,7 +88,7 @@ router.get('/', optionalAuth, async (req, res) => {
 // @access  Public
 router.get('/featured', async (req, res) => {
   try {
-    const products = await Product.find({ status: 'active', isFeatured: true })
+    const products = await Product.find({ isFeatured: true, ...publicStorefrontStatus })
       .populate('vendor', 'name avatar vendorProfile')
       .limit(8)
       .sort({ createdAt: -1 });
@@ -99,7 +104,7 @@ router.get('/featured', async (req, res) => {
 // @access  Public
 router.get('/categories', async (req, res) => {
   try {
-    const categories = await Product.distinct('category', { status: 'active' });
+    const categories = await Product.distinct('category', publicStorefrontStatus);
     res.json({ success: true, data: categories });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

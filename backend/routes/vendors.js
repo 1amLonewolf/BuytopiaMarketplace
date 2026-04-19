@@ -49,9 +49,9 @@ router.get('/:id', async (req, res) => {
 // @access  Public
 router.get('/:id/products', async (req, res) => {
   try {
-    const products = await Product.find({ 
+    const products = await Product.find({
       vendor: req.params.id,
-      status: 'active'
+      $or: [{ status: 'active' }, { status: { $exists: false } }]
     })
     .populate('vendor', 'name avatar vendorProfile')
     .sort({ createdAt: -1 });
