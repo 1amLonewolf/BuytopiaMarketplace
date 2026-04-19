@@ -15,11 +15,11 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://buytopia-backend-production-3994.up.railway.app',
+        target: 'https://buytopia-backend-production.up.railway.app',
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://buytopia-backend-production-3994.up.railway.app',
+        target: 'https://buytopia-backend-production.up.railway.app',
         changeOrigin: true,
       }
     }
