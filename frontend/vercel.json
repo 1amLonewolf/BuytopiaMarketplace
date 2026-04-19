@@ -1,5 +1,5 @@
 {
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://buytopia-backend-production.up.railway.app/api/:path*" }
+    { "source": "/api/:path*", "destination": "https://buytopia-backend-production-3994.up.railway.app/api/:path*" }
   ]
 }

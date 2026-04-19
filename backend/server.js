@@ -80,11 +80,17 @@ app.use(helmet());
 // Webhook needs raw body before JSON parsing
 app.use('/api/webhooks', webhookRoutes);
 
-// Middleware
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true
-}));
+// Middleware — comma-separated CLIENT_URL for prod + preview (e.g. Vercel + localhost)
+const corsOrigins = (process.env.CLIENT_URL || 'http://localhost:3000')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+app.use(
+  cors({
+    origin: corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins,
+    credentials: true
+  })
+);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 

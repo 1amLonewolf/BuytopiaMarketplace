@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Must match your deployed backend (see Railway dashboard). Same host as frontend/vercel.json rewrites.
-const DEFAULT_PRODUCTION_API = 'https://buytopia-backend-production.up.railway.app';
+// Must match your Railway **public** URL (Dashboard → service → Settings → Networking).
+const DEFAULT_PRODUCTION_API = 'https://buytopia-backend-production-3994.up.railway.app';
 
 function resolveBaseURL() {
   const fromEnv = import.meta.env.VITE_API_URL;
