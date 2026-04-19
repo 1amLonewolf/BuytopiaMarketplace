@@ -35,6 +35,12 @@ const mpesaRoutes = require('./routes/mpesa');
 
 const app = express();
 
+// Behind Railway/Render/etc., every client must not share one IP — otherwise the
+// global limiter exhausts in minutes and the API looks "down" (429 for everyone).
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Rate limiting - stricter for auth routes
 const isDevelopment = process.env.NODE_ENV === 'development';
 
@@ -46,7 +52,12 @@ const generalLimiter = rateLimit({
     message: 'Too many requests from this IP, please try again later.'
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  // Never throttle platform health checks (same IP as other traffic without trust proxy)
+  skip: (req) => {
+    const p = req.path || '';
+    return p === '/health' || p === '/api/health';
+  }
 });
 
 const authLimiter = rateLimit({
